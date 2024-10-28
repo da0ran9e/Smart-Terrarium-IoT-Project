@@ -1,26 +1,16 @@
-#include "ESP8266WiFi.h"
+#include "wifi.h"
+
+const char* ssid     = "O R A N G E"; 
+const char* password = "1234567tam";
 
 void setup()
 {
   Serial.begin(115200);
-  Serial.println();
-
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(100);
+  //WiFiSetup();
+  ConnectWiFi(ssid, password);
 }
 
 void loop()
 {
-  Serial.print("Scan start ... ");
-  int n = WiFi.scanNetworks();
-  Serial.print(n);
-  Serial.println(" network(s) found");
-  for (int i = 0; i < n; i++)
-  {
-    Serial.println(WiFi.SSID(i));
-  }
-  Serial.println();
-
-  delay(5000);
+  //WiFiScan();
 }
