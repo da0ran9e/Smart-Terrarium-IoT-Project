@@ -1,5 +1,8 @@
-#define SensorPin       34  //D34 
+#define SensorPin       5  
 int     sensorVal;
+int     moisturePercentage;
+int wetSoilVal = 930 ;  //min value when soil is wet
+int drySoilVal = 3000 ;  //max value when soil is dry
 
 void getMoisture(){
   sensorVal = analogRead(SensorPin);
