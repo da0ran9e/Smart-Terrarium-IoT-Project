@@ -29,7 +29,8 @@ void ConnectWiFi(const char* ssid, const char* password){
   
   WiFi.begin(ssid, password);             
   Serial.print("Connecting to ");
-  Serial.print(ssid); Serial.println(" ...");
+  Serial.print(ssid); 
+  Serial.println(" ...");
 
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) { 
