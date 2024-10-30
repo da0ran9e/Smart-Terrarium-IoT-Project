@@ -1,171 +1,89 @@
-#include <WiFi.h>
-extern "C" {
-  #include "freertos/FreeRTOS.h"
-  #include "freertos/timers.h"
-}
-#include <AsyncMqttClient.h>
-#include <ArduinoJson.h>
+// #include "WiFi_Controller.h"
+// #include "MQTT_Controller.h"
 
-#define WIFI_SSID "xxxxxxxx"
-#define WIFI_PASSWORD "xxxxxxxx"
+const char* ssid     = "Tung home"; 
+const char* password = "0963617074";
 
-#define MQTT_HOST "broker.hivemq.com"
-#define MQTT_PORT 1883
-#define MQTT_PUB_TEMP "ict66/smarterra/sensors/"
-#define MQTT_USER ""
-#define MQTT_PASSWORD ""
+// void setup(){
+//   Serial.begin(115200);
+//   ConnectWiFi(ssid, password);
+//   MQTTSetup();
+// }
 
-AsyncMqttClient mqttClient;
-TimerHandle_t mqttReconnectTimer;
-TimerHandle_t wifiReconnectTimer;
+// void loop(){
+//   SendDataToBroker();
+// }
 
-// Variables to hold sensor readings
-float temp;
-float hum;
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
 
-unsigned long previousMillis = 0;   // Stores last time temperature was published
-const long interval = 10000;        // Interval at which to publish sensor readings
 
-void connectToWifi() {
-    Serial.println("Connecting to Wi-Fi...");
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-}
+// MQTT Broker settings
+const char *mqtt_broker = "broker.hivemq.com"; // EMQX broker endpoint
+const char *mqtt_topic = "ict66/smarterra/sensors/";   // MQTT topic
+const char *mqtt_username = "emqx"; // MQTT username for authentication
+const char *mqtt_password = "public"; // MQTT password for authentication
+const int mqtt_port = 1883; // MQTT port (TCP)
 
-void connectToMqtt() {
-    Serial.println("Connecting to MQTT...");
-    mqttClient.connect();
-}
+WiFiClient espClient;
+PubSubClient mqtt_client(espClient);
 
-void WiFiEvent(WiFiEvent_t event) {
-    Serial.printf("[WiFi-event] event: %d\n", event);
-    switch (event) {
-        case SYSTEM_EVENT_STA_GOT_IP:
-            Serial.println("WiFi connected");
-            Serial.println("IP address: ");
-            Serial.println(WiFi.localIP());
-            connectToMqtt();
-            break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            Serial.println("WiFi lost connection");
-            xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-            xTimerStart(wifiReconnectTimer, 0);
-            break;
-    }
-}
+void connectToWiFi();
 
-void onMqttConnect(bool sessionPresent) {
-    Serial.println("Connected to MQTT.");
-    Serial.print("Session present: ");
-    Serial.println(sessionPresent);
-    // pin 13
-    uint16_t packetIdSub = mqttClient.subscribe("640d4c75a2b2ba23e07ecb4e/devices/640dbdb6a9e8e10e90f5e1e1", 0);
+void connectToMQTTBroker();
 
-    // pin 12
-    uint16_t packetIdSub1 = mqttClient.subscribe("640d4c75a2b2ba23e07ecb4e/devices/640dbdcba9e8e10e90f5e1e2", 0);
-
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-    Serial.println("Disconnected from MQTT.");
-    if (WiFi.isConnected()) {
-        xTimerStart(mqttReconnectTimer, 0);
-    }
-}
-
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index,
-                   size_t total) {
-      Serial.println("tesst topic+payload:....\n");
-      Serial.println(payload);
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, payload);
-    const char *pin = doc["pin"];
-    Serial.println(pin);
-    const char *status = doc["data"]["status"];
-    Serial.println(status);
-    if(strcmp(pin,"13") == 0){
-        if (strcmp(status, "ON") == 0) {
-            Serial.println("test 13");
-            digitalWrite(LED_1, HIGH);
-        } else {
-            digitalWrite(LED_1, LOW);
-        }
-    }
-    if(strcmp(pin,"12") == 0){
-        if (strcmp(status, "ON") == 0) {
-            Serial.println("test 12");
-            digitalWrite(LED_2, HIGH);
-        } else {
-            digitalWrite(LED_2, LOW);
-        }
-    }
-}
-
-void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
-    Serial.println("Subscribe acknowledged.");
-    Serial.print("  packetId: ");
-    Serial.println(packetId);
-    Serial.print("  qos: ");
-    Serial.println(qos);
-}
-
-void onMqttUnsubscribe(uint16_t packetId) {
-    Serial.println("Unsubscribe acknowledged.");
-    Serial.print("  packetId: ");
-    Serial.println(packetId);
-}
-
-void onMqttPublish(uint16_t packetId) {
-    Serial.print("Publish acknowledged.");
-    Serial.print("  packetId: ");
-    Serial.println(packetId);
-}
+void mqttCallback(char *topic, byte *payload, unsigned int length);
 
 void setup() {
-    Serial.begin(115200);
-    Serial.println();
-    pinMode(LED_1, OUTPUT);
-    pinMode(LED_2, OUTPUT);
-    dht.begin();
+   Serial.begin(115200);
+   connectToWiFi();
+   mqtt_client.setServer(mqtt_broker, mqtt_port);
+   mqtt_client.setCallback(mqttCallback);
+   connectToMQTTBroker();
+}
 
-    mqttReconnectTimer = xTimerCreate(
-            "mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *) 0,
-            reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
-    wifiReconnectTimer = xTimerCreate(
-            "wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *) 0,
-            reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+void connectToWiFi() {
+   WiFi.begin(ssid, password);
+   Serial.print("Connecting to WiFi");
+   while (WiFi.status() != WL_CONNECTED) {
+     delay(500);
+     Serial.print(".");
+    }
+   Serial.println("\nConnected to the WiFi network");
+}
 
-    WiFi.onEvent(WiFiEvent);
+void connectToMQTTBroker() {
+   while (!mqtt_client.connected()) {
+     String client_id = "esp8266-client-" + String(WiFi.macAddress());
+     Serial.printf("Connecting to MQTT Broker as %s.....\n", client_id.c_str());
+     if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+        Serial.println("Connected to MQTT broker");
+        mqtt_client.subscribe(mqtt_topic);
+        // Publish message upon successful connection
+        mqtt_client.publish(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
+      } else {
+        Serial.print("Failed to connect to MQTT broker, rc=");
+        Serial.print(mqtt_client.state());
+        Serial.println(" try again in 5 seconds");
+        delay(5000);
+      }
+    }
+}
 
-    mqttClient.onConnect(onMqttConnect);
-    mqttClient.onDisconnect(onMqttDisconnect);
-    mqttClient.onMessage(onMqttMessage);
-    mqttClient.onPublish(onMqttPublish);
-    mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-    mqttClient.setCredentials(MQTT_USER, MQTT_PASSWORD);
-
-    connectToWifi();
+void mqttCallback(char *topic, byte *payload, unsigned int length) {
+   Serial.print("Message received on topic: ");
+   Serial.println(topic);
+   Serial.print("Message:");
+   for (unsigned int i = 0; i < length; i++) {
+     Serial.print((char) payload[i]);
+    }
+   Serial.println();
+   Serial.println("-----------------------");
 }
 
 void loop() {
-    unsigned long currentMillis = millis();
-    digitalWrite(LED_1, HIGH);
-
-    if (currentMillis - previousMillis >= interval) {
-        previousMillis = currentMillis;
-
-        DynamicJsonDocument doc(256);
-        doc["device"] = "111";
-        doc["pin"] = 1;
-        doc["time"] = time(nullptr);
-        doc["data"]["temperature"] = temp;
-        doc["data"]["humidity"] = hum;
-
-        char payload[256];
-        serializeJson(doc, payload);
-        uint16_t packetIdPub1 = mqttClient.publish(MQTT_PUB_TEMP, 1, true, payload);
-
-        Serial.println(time(nullptr));
-        Serial.printf("Publishing on topic %s at QoS 1, packetId: %i ", MQTT_PUB_TEMP, packetIdPub1);
-        Serial.printf("Message: %s \n", payload);        
+   if (!mqtt_client.connected()) {
+     connectToMQTTBroker();
     }
+   mqtt_client.loop();
 }
