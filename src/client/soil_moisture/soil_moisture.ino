@@ -8,7 +8,7 @@ void loop() {
   // sensorVal = analogRead(SensorPin);
   // Serial.print("Moisture Value: ");
   // Serial.println(sensorVal);
-  PrintAnalog();
+  Serial.println(getMoisture());
   delay(100);
 }
 

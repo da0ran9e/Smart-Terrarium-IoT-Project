@@ -1,20 +1,16 @@
-#define SensorPin       5  
-int wetSoilVal = 930 ;  //min value when soil is wet
-int drySoilVal = 3000 ;  //max value when soil is dry
+#define SensorPin       A0  
+int wetSoilVal = 500 ;  //min value when soil is wet
+int drySoilVal = 714 ;  //max value when soil is dry
 
-void getMoisture(){
+int getMoisture(){
   int sensorVal = analogRead(SensorPin);
 
-  if (sensorVal > (wetSoilVal - 100) && sensorVal < (drySoilVal + 100) ){
-    int moisturePercentage = map(sensorVal ,drySoilVal, wetSoilVal, 0, 100);
-    Serial.print("Moisture Percentage: ");
-    Serial.print(moisturePercentage);
-    Serial.println(" %");
+  if (sensorVal > (wetSoilVal - 20) && sensorVal < (drySoilVal + 20) ){
+    return map(sensorVal ,drySoilVal, wetSoilVal, 0, 100); 
   }
   else{
-    Serial.println(sensorVal);
+    return -1;
   }
-  delay(100);
 }
 
 void PrintAnalog(){
