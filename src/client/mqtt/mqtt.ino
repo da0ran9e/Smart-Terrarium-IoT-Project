@@ -1,22 +1,8 @@
-// #include "WiFi_Controller.h"
-// #include "MQTT_Controller.h"
-
-const char* ssid     = "Tung home"; 
-const char* password = "0963617074";
-
-// void setup(){
-//   Serial.begin(115200);
-//   ConnectWiFi(ssid, password);
-//   MQTTSetup();
-// }
-
-// void loop(){
-//   SendDataToBroker();
-// }
-
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
+const char* ssid     = "Tung home"; 
+const char* password = "0963617074";
 
 // MQTT Broker settings
 const char *mqtt_broker = "broker.hivemq.com"; // EMQX broker endpoint
@@ -52,22 +38,14 @@ void connectToWiFi() {
    Serial.println("\nConnected to the WiFi network");
 }
 
-void connectToMQTTBroker() {
-   while (!mqtt_client.connected()) {
-     String client_id = "esp8266-client-" + String(WiFi.macAddress());
-     Serial.printf("Connecting to MQTT Broker as %s.....\n", client_id.c_str());
-     if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
-        Serial.println("Connected to MQTT broker");
-        mqtt_client.subscribe(mqtt_topic);
-        // Publish message upon successful connection
-        mqtt_client.publish(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
-      } else {
-        Serial.print("Failed to connect to MQTT broker, rc=");
-        Serial.print(mqtt_client.state());
-        Serial.println(" try again in 5 seconds");
-        delay(5000);
-      }
-    }
+
+void mqttPublishMessage(char *topic, char *message){
+   Serial.print("Sending to topic: ");
+   Serial.println(topic);
+   Serial.print("Message: ");
+   Serial.println(message);
+   mqtt_client.publish(topic, message);
+   Serial.println("Sent~");
 }
 
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
@@ -79,11 +57,32 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
     }
    Serial.println();
    Serial.println("-----------------------");
+
+   // Publish message upon successful connection
+        mqttPublishMessage(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
 }
+
+void connectToMQTTBroker() {
+   while (!mqtt_client.connected()) {
+     String client_id = "esp8266-client-" + String(WiFi.macAddress());
+     Serial.printf("Connecting to MQTT Broker as %s.....\n", client_id.c_str());
+     if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+        Serial.println("Connected to MQTT broker");
+        mqtt_client.subscribe(mqtt_topic);
+        
+      } else {
+        Serial.print("Failed to connect to MQTT broker, rc=");
+        Serial.print(mqtt_client.state());
+        Serial.println(" try again in 5 seconds");
+        delay(5000);
+      }
+    }
+}
+
 
 void loop() {
    if (!mqtt_client.connected()) {
      connectToMQTTBroker();
-    }
+   }
    mqtt_client.loop();
 }
