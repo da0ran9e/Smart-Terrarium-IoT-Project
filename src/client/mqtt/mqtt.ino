@@ -39,7 +39,7 @@ void connectToWiFi() {
 }
 
 
-void mqttPublishMessage(char *topic, char *message){
+void mqttPublishMessage(const char *topic, const char *message){
    Serial.print("Sending to topic: ");
    Serial.println(topic);
    Serial.print("Message: ");
@@ -59,7 +59,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
    Serial.println("-----------------------");
 
    // Publish message upon successful connection
-        mqttPublishMessage(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
+  mqttPublishMessage(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
 }
 
 void connectToMQTTBroker() {
