@@ -27,7 +27,7 @@ void setup() {
    mqtt_client.setCallback(mqttCallback);
    connectToMQTTBroker();
 }
-
+ 
 void connectToWiFi() {
    WiFi.begin(ssid, password);
    Serial.print("Connecting to WiFi");

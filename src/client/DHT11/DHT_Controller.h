@@ -1,7 +1,7 @@
 #include "DHT.h"
 
 #define DHTTYPE DHT11
-#define DHT_PIN 5
+#define DHT_PIN 1
 DHT dht(DHT_PIN, DHTTYPE);
 
 typedef struct DHTData{
