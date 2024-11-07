@@ -1,0 +1,53 @@
+openapi: 3.0.0
+info:
+  title: Simple Messaging API
+  description: API for sending messages
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/send-message:
+    post:
+      summary: Send a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sender:
+                  type: string
+                  example: "John"
+                recipient:
+                  type: string
+                  example: "Doe"
+                content:
+                  type: string
+                  example: "Hello, how are you?"
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Message sent successfully!"
+                  data:
+                    type: object
+                    properties:
+                      sender:
+                        type: string
+                        example: "John"
+                      recipient:
+                        type: string
+                        example: "Doe"
+                      content:
+                        type: string
+                        example: "Hello, how are you?"
+                      timestamp:
+                        type: string
+                        example: "2024-10-09T12:34:56Z"
