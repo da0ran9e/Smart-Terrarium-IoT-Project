@@ -6,8 +6,8 @@
 #include <DHT.h>
 
 // WiFi and MQTT settings
-const char* SSID     = ""; 
-const char* PASSWORD = "";
+const char* SSID     = "Tung home"; 
+const char* PASSWORD = "0963617074";
 const char *MQTT_BROKER = "broker.hivemq.com";
 const char *MQTT_TOPIC = "ict66/smarterra/sensors/";
 const int MQTT_PORT = 1883;
@@ -17,6 +17,9 @@ const int MQTT_PORT = 1883;
 #define DHTTYPE DHT11
 #define SENSOR_PIN A0
 #define PUMP_PIN 5
+#define FAN_PIN 14
+#define BLINK 4
+
 const int WET_VAL = 500;  // Wet soil threshold
 const int DRY_VAL = 714;  // Dry soil threshold
 
@@ -61,12 +64,17 @@ struct ControlMessage {
 // WiFi connection setup
 void connectToWiFi() {
     WiFi.begin(SSID, PASSWORD);
-    Serial.print("Connecting to WiFi");
+    //Serial.print("Connecting to WiFi");
+    digitalWrite(BLINK, LOW);
     while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
+        delay(250);
+        digitalWrite(BLINK, LOW);
+        delay(250);
+        //Serial.print("."); 
+        digitalWrite(BLINK, HIGH);
     }
-    Serial.println("\nConnected to the WiFi network");
+    digitalWrite(BLINK, HIGH);
+    //Serial.println("\nConnected to the WiFi network");
 }
 
 // MQTT connection setup
@@ -110,8 +118,6 @@ void mqttSetup() {
 // Setup DHT and pump pins
 void DHTSetup() {
     dht.begin();
-    pinMode(PUMP_PIN, OUTPUT);
-    digitalWrite(PUMP_PIN, LOW);
 }
 
 // Function to get DHT data
@@ -131,6 +137,10 @@ void publishSensorData() {
 }
 
 void setup() {
+    pinMode(PUMP_PIN, OUTPUT);
+    digitalWrite(PUMP_PIN, LOW);
+    pinMode(BLINK, OUTPUT);
+    digitalWrite(BLINK, LOW);
     Serial.begin(115200);
     DHTSetup();
     mqttSetup();
