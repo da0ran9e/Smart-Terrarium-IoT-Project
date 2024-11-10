@@ -17,7 +17,7 @@ const int MQTT_PORT = 1883;
 #define DHTTYPE DHT11
 #define SENSOR_PIN A0
 #define PUMP_PIN 5
-#define FAN_PIN 14
+#define FAN_PIN 12
 #define BLINK 4
 
 const int WET_VAL = 500;  // Wet soil threshold
@@ -49,6 +49,7 @@ struct SensorData {
 // ControlMessage structure for pump control
 struct ControlMessage {
     bool pump;
+    bool fan;
     unsigned int duration;
 
     bool fromJson(const char *jsonBuffer, size_t length) {
@@ -56,6 +57,7 @@ struct ControlMessage {
         auto error = deserializeJson(jsonDoc, jsonBuffer, length);
         if (error) return false;
         pump = jsonDoc["pump"] | false;
+        fan = jsonDoc["fan"] | false;
         duration = jsonDoc["duration"] | 0;
         return true;
     }
@@ -80,9 +82,9 @@ void connectToWiFi() {
 // MQTT connection setup
 void connectToMQTTBroker() {
     while (!MQTTClient.connected()) {
-        Serial.println("Connecting to MQTT broker...");
+        //Serial.println("Connecting to MQTT broker...");
         if (MQTTClient.connect("esp8266-client")) {
-            Serial.println("Connected to MQTT broker!");
+            //Serial.println("Connected to MQTT broker!");
             MQTTClient.subscribe(MQTT_TOPIC);
         } else {
             delay(5000);
@@ -97,13 +99,19 @@ void mqttPublishMessage(const char *topic, const SensorData &data) {
     MQTTClient.publish(topic, message);
 }
 
-// Handle incoming MQTT messages
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
     ControlMessage controlMsg;
     if (controlMsg.fromJson((char*)payload, length)) {
-        digitalWrite(PUMP_PIN, controlMsg.pump ? HIGH : LOW);
-        if (controlMsg.pump) delay(controlMsg.duration * 1000);
-        digitalWrite(PUMP_PIN, LOW);
+        if (controlMsg.pump) {
+            digitalWrite(PUMP_PIN, HIGH);
+            delay(controlMsg.duration * 1000); // Consider using millis() for non-blocking
+            digitalWrite(PUMP_PIN, LOW);
+        }
+        if (controlMsg.fan) {
+            digitalWrite(FAN_PIN, HIGH);
+            delay(controlMsg.duration * 1000); // Consider using millis() for non-blocking
+            digitalWrite(FAN_PIN, LOW);
+        }
     }
 }
 
@@ -138,10 +146,13 @@ void publishSensorData() {
 
 void setup() {
     pinMode(PUMP_PIN, OUTPUT);
-    digitalWrite(PUMP_PIN, LOW);
+    pinMode(FAN_PIN, OUTPUT);
     pinMode(BLINK, OUTPUT);
+
+    digitalWrite(PUMP_PIN, LOW);
+    digitalWrite(FAN_PIN, LOW);
     digitalWrite(BLINK, LOW);
-    Serial.begin(115200);
+    //Serial.begin(115200);
     DHTSetup();
     mqttSetup();
 }
