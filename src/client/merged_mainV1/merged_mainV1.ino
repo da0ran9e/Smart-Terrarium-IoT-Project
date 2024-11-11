@@ -8,6 +8,7 @@
 // WiFi and MQTT settings
 const char* SSID     = "Tung home"; 
 const char* PASSWORD = "0963617074";
+
 const char *MQTT_BROKER = "broker.hivemq.com";
 const char *MQTT_TOPIC = "ict66/smarterra/sensors/";
 const int MQTT_PORT = 1883;
@@ -132,7 +133,7 @@ void DHTSetup() {
 SensorData GetSensorData() {
     SensorData data;
     data.humidity = dht.readHumidity();
-    float temp = dht.readTemperature(true);
+    float temp = dht.readTemperature();
     data.temperature = isnan(temp) ? 0 : temp;
     data.moisture = map(analogRead(SENSOR_PIN), DRY_VAL, WET_VAL, 0, 100);
     return data;
