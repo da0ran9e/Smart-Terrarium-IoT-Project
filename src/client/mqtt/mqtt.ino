@@ -5,11 +5,11 @@ const char* ssid     = "Tung home";
 const char* password = "0963617074";
 
 // MQTT Broker settings
-const char *mqtt_broker = "broker.hivemq.com"; // EMQX broker endpoint
+const char *mqtt_broker = "4607103f537844a08f130ad89c8e9ba7.s1.eu.hivemq.cloud"; // EMQX broker endpoint
 const char *mqtt_topic = "ict66/smarterra/sensors/";   // MQTT topic
-const char *mqtt_username = "emqx"; // MQTT username for authentication
-const char *mqtt_password = "public"; // MQTT password for authentication
-const int mqtt_port = 1883; // MQTT port (TCP)
+const char *mqtt_username = "username"; // MQTT username for authentication
+const char *mqtt_password = "Abcd1234"; // MQTT password for authentication
+const int mqtt_port = 8883; // MQTT port (TCP)
 
 WiFiClient espClient;
 PubSubClient mqtt_client(espClient);
@@ -64,7 +64,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
 
 void connectToMQTTBroker() {
    while (!mqtt_client.connected()) {
-     String client_id = "esp8266-client-" + String(WiFi.macAddress());
+     String client_id = "esp8266-client-" + String(ESP.getChipId(), HEX) + String(random(0xffff), HEX);
      Serial.printf("Connecting to MQTT Broker as %s.....\n", client_id.c_str());
      if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
         Serial.println("Connected to MQTT broker");
