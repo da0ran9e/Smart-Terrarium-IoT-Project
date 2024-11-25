@@ -1,15 +1,15 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-const char* ssid     = "Tung home"; 
-const char* password = "0963617074";
+const char* ssid     = "oản"; 
+const char* password = "1234567tam";
 
 // MQTT Broker settings
-const char *mqtt_broker = "4607103f537844a08f130ad89c8e9ba7.s1.eu.hivemq.cloud"; // EMQX broker endpoint
+const char *mqtt_broker = "broker.emqx.io"; // EMQX broker endpoint
 const char *mqtt_topic = "ict66/smarterra/sensors/";   // MQTT topic
-const char *mqtt_username = "username"; // MQTT username for authentication
-const char *mqtt_password = "Abcd1234"; // MQTT password for authentication
-const int mqtt_port = 8883; // MQTT port (TCP)
+const char *mqtt_username = ""; // MQTT username for authentication
+const char *mqtt_password = ""; // MQTT password for authentication
+const int mqtt_port = 1883; // MQTT port (TCP)
 
 WiFiClient espClient;
 PubSubClient mqtt_client(espClient);
