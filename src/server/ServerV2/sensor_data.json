@@ -1,0 +1,171 @@
+[
+  {
+    "temperature": 28.9,
+    "humidity": 63,
+    "moisture": 330,
+    "client_id": "mqtt_dee99bc42b9f",
+    "timestamp": "2024-11-25T11:25:10.769Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 330,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:12.403Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 329,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:17.294Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 326,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:22.301Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 329,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:27.306Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 329,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:32.317Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 329,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:37.322Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 330,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:47.245Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 331,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:52.150Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 330,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:26:57.173Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 315,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:02.171Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 316,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:07.173Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 316,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:12.181Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 316,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:17.188Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 313,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:22.196Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 303,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:27.207Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 305,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:32.209Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 302,
+    "client_id": "mqtt_461256b06336",
+    "timestamp": "2024-11-25T11:27:37.211Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 313,
+    "client_id": "mqtt_dee99bc42b9f",
+    "timestamp": "2024-11-25T14:32:48.984Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 313,
+    "client_id": "mqtt_dee99bc42b9f",
+    "timestamp": "2024-11-25T14:33:00.071Z"
+  },
+  {
+    "fan": true,
+    "pump": true,
+    "duration": 5,
+    "client_id": "mqtt_dee99bc42b9f",
+    "online": false,
+    "timestamp": "2024-11-25T14:40:13.110Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 313,
+    "client_id": "mqtt_dee99bc42b9f",
+    "timestamp": "2024-11-25T15:28:00.668Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 313,
+    "client_id": "mqtt_dee99bc42b9f",
+    "timestamp": "2024-11-25T15:28:17.787Z"
+  },
+  {
+    "temperature": 0,
+    "humidity": null,
+    "moisture": 313,
+    "client_id": "mqtt_dee99bc42b9f",
+    "timestamp": "2024-11-25T15:29:05.187Z"
+  }
+]

@@ -1,14 +1,14 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
-const char* ssid     = "Tung home"; 
-const char* password = "0963617074";
+const char* ssid     = "oản"; 
+const char* password = "1234567tam";
 
 // MQTT Broker settings
-const char *mqtt_broker = "broker.hivemq.com"; // EMQX broker endpoint
+const char *mqtt_broker = "broker.emqx.io"; // EMQX broker endpoint
 const char *mqtt_topic = "ict66/smarterra/sensors/";   // MQTT topic
-const char *mqtt_username = "emqx"; // MQTT username for authentication
-const char *mqtt_password = "public"; // MQTT password for authentication
+const char *mqtt_username = ""; // MQTT username for authentication
+const char *mqtt_password = ""; // MQTT password for authentication
 const int mqtt_port = 1883; // MQTT port (TCP)
 
 WiFiClient espClient;
@@ -64,7 +64,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
 
 void connectToMQTTBroker() {
    while (!mqtt_client.connected()) {
-     String client_id = "esp8266-client-" + String(WiFi.macAddress());
+     String client_id = "esp8266-client-" + String(ESP.getChipId(), HEX) + String(random(0xffff), HEX);
      Serial.printf("Connecting to MQTT Broker as %s.....\n", client_id.c_str());
      if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
         Serial.println("Connected to MQTT broker");

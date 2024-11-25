@@ -1,4 +1,4 @@
-#include "DHT.h"
+#include <DHT.h>
 
 #define DHTTYPE DHT11
 #define DHT_PIN 1

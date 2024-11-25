@@ -1,29 +1,23 @@
-#include <ESP8266WiFi.h>
+#include <WiFiManager.h> 
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
 
 // WiFi and MQTT settings
-const char* SSID     = "Tung home"; 
-const char* PASSWORD = "0963617074";
+const char* AP_NAME     = "8266AP"; 
+const char* AP_PASSWORD = "password";
 
-const char *MQTT_BROKER = "broker.emqx.io";
+const char *MQTT_BROKER = "broker.hivemq.com";
 const char *MQTT_TOPIC = "ict66/smarterra/sensors/";
 const int MQTT_PORT = 1883;
-const char* MQTT_USERNAME = "";
-const char* MQTT_PASSWORD = "";
 
 // Pin and DHT settings
 #define DHT_PIN 1
+#define DHTTYPE DHT11
 #define SENSOR_PIN A0
 #define PUMP_PIN 5
-#define FAN_PIN 4
-#define WIFI_BLINK 14
-#define MQTT_BLINK 12
-#define DHT_BLINK 13
-#define SOIL_BLINK 15
-
-#define DHTTYPE DHT11
+#define FAN_PIN 12
+#define BLINK 4
 
 const int WET_VAL = 500;  // Wet soil threshold
 const int DRY_VAL = 714;  // Dry soil threshold
@@ -68,47 +62,15 @@ struct ControlMessage {
     }
 };
 
-// WiFi connection setup
-void connectToWiFi() {
-    WiFi.begin(SSID, PASSWORD);
-    //Serial.print("Connecting to WiFi");
-    digitalWrite(WIFI_BLINK, LOW);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(250);
-        digitalWrite(WIFI_BLINK, LOW);
-        delay(250);
-        //Serial.print("."); 
-        digitalWrite(WIFI_BLINK, HIGH);
-    }
-    digitalWrite(WIFI_BLINK, HIGH);
-    //Serial.println("\nConnected to the WiFi network");
-}
-
 // MQTT connection setup
 void connectToMQTTBroker() {
     while (!MQTTClient.connected()) {
-        String client_id = "esp8266-client-" + String(ESP.getChipId(), HEX);
         //Serial.println("Connecting to MQTT broker...");
-        digitalWrite(MQTT_BLINK, HIGH);
-        if (MQTTClient.connect(client_id.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
+        if (MQTTClient.connect("esp8266-client")) {
             //Serial.println("Connected to MQTT broker!");
-            digitalWrite(MQTT_BLINK, HIGH);
             MQTTClient.subscribe(MQTT_TOPIC);
         } else {
-            //Serial.print("Failed to connect to MQTT broker, rc=");
-            //Serial.println(MQTTClient.state());
-            //Serial.println("Trying again in 5 seconds.");
-            delay(1000);
-            digitalWrite(MQTT_BLINK, LOW);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, HIGH);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, LOW);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, HIGH);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, LOW);
-            delay(1000);
+            delay(5000);
         }
     }
 }
@@ -138,7 +100,6 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
 
 // MQTT initialization
 void mqttSetup() {
-    connectToWiFi();
     MQTTClient.setServer(MQTT_BROKER, MQTT_PORT);
     MQTTClient.setCallback(mqttCallback);
     connectToMQTTBroker();
@@ -147,7 +108,6 @@ void mqttSetup() {
 // Setup DHT and pump pins
 void DHTSetup() {
     dht.begin();
-    digitalWrite(DHT_BLINK, HIGH);
 }
 
 // Function to get DHT data
@@ -157,16 +117,6 @@ SensorData GetSensorData() {
     float temp = dht.readTemperature();
     data.temperature = isnan(temp) ? 0 : temp;
     data.moisture = map(analogRead(SENSOR_PIN), DRY_VAL, WET_VAL, 0, 100);
-    if(data.humidity != 0 && data.temperature != 0){
-        digitalWrite(DHT_BLINK, HIGH);
-    } else {
-        digitalWrite(DHT_BLINK, LOW);
-    }
-    if(data.moisture <= 100) {
-        digitalWrite(SOIL_BLINK, HIGH);
-    } else {
-        digitalWrite(SOIL_BLINK, LOW);
-    }
     return data;
 }
 
@@ -177,21 +127,43 @@ void publishSensorData() {
 }
 
 void setup() {
+    //Serial.begin(115200);
     pinMode(PUMP_PIN, OUTPUT);
     pinMode(FAN_PIN, OUTPUT);
-    pinMode(WIFI_BLINK, OUTPUT);
-    pinMode(MQTT_BLINK, OUTPUT);
-    pinMode(DHT_BLINK, OUTPUT);
-    pinMode(SOIL_BLINK, OUTPUT);
+    pinMode(BLINK, OUTPUT);
 
     digitalWrite(PUMP_PIN, LOW);
     digitalWrite(FAN_PIN, LOW);
-    digitalWrite(WIFI_BLINK, LOW);
-    digitalWrite(MQTT_BLINK, LOW);
-    digitalWrite(DHT_BLINK, LOW);
-    digitalWrite(SOIL_BLINK, LOW);
-
+    digitalWrite(BLINK, LOW);
     //Serial.begin(115200);
+    
+    WiFiManager wm;
+    bool res;
+    res = wm.autoConnect(AP_NAME, AP_PASSWORD); 
+    // while (WiFi.status() != WL_CONNECTED) {
+    //     delay(250);
+    //     digitalWrite(BLINK, LOW);
+    //     delay(250);
+    //     //Serial.print("."); 
+    //     digitalWrite(BLINK, HIGH);
+    // }
+    if(!res) {
+        //Serial.println("Failed to connect");
+        digitalWrite(BLINK, HIGH);
+        delay(25);
+        digitalWrite(BLINK, LOW);
+        delay(25);
+        digitalWrite(BLINK, HIGH);
+        delay(25);
+        digitalWrite(BLINK, LOW);
+        delay(25);
+    } 
+    else {
+        //Serial.println("connected...yeey :)");
+        digitalWrite(BLINK, HIGH);
+        delay(25);
+    }
+
     DHTSetup();
     mqttSetup();
 }

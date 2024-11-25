@@ -4,11 +4,13 @@
 #include <DHT.h>
 
 // WiFi and MQTT settings
-const char* SSID     = "Tung home"; 
-const char* PASSWORD = "0963617074";
+const char* SSID = "oản"; 
+const char* PASSWORD = "1234567tam";
 
-const char *MQTT_BROKER = "broker.emqx.io";
-const char *MQTT_TOPIC = "ict66/smarterra/sensors/";
+const char* MQTT_BROKER = "broker.emqx.io";
+const char* SENSOR_TOPIC = "ict66/smarterra/sensors/";
+const char* QUERY_TOPIC = "ict66/smarterra/queries/";
+const char* KEEPALIVE_TOPIC = "ict66/smarterra/keepalive/";
 const int MQTT_PORT = 1883;
 const char* MQTT_USERNAME = "";
 const char* MQTT_PASSWORD = "";
@@ -28,9 +30,12 @@ const char* MQTT_PASSWORD = "";
 const int WET_VAL = 500;  // Wet soil threshold
 const int DRY_VAL = 714;  // Dry soil threshold
 
-// Time interval to publish sensor data (in milliseconds)
-const unsigned long PUBLISH_INTERVAL = 5000;
-unsigned long lastPublishTime = 0;
+// Time intervals (in milliseconds)
+const unsigned long SENSOR_INTERVAL = 5 * 60 * 1000; // 5 minutes for sensor data
+const unsigned long KEEPALIVE_INTERVAL = 5 * 1000;  // 30 seconds for keep-alive
+
+unsigned long lastSensorTime = 0;
+unsigned long lastKeepAliveTime = 0;
 
 WiFiClient espClient;
 PubSubClient MQTTClient(espClient);
@@ -43,7 +48,7 @@ struct SensorData {
     int moisture;
 
     void toJson(char *jsonBuffer, size_t bufferSize) const {
-        StaticJsonDocument<150> jsonDoc;  // Reduced from 200 to 150
+        StaticJsonDocument<150> jsonDoc;
         jsonDoc["temperature"] = temperature;
         jsonDoc["humidity"] = humidity;
         jsonDoc["moisture"] = moisture;
@@ -58,7 +63,7 @@ struct ControlMessage {
     unsigned int duration;
 
     bool fromJson(const char *jsonBuffer, size_t length) {
-        StaticJsonDocument<100> jsonDoc;  // Reduced from 200 to 100
+        StaticJsonDocument<100> jsonDoc;
         auto error = deserializeJson(jsonDoc, jsonBuffer, length);
         if (error) return false;
         pump = jsonDoc["pump"] | false;
@@ -71,76 +76,72 @@ struct ControlMessage {
 // WiFi connection setup
 void connectToWiFi() {
     WiFi.begin(SSID, PASSWORD);
-    //Serial.print("Connecting to WiFi");
     digitalWrite(WIFI_BLINK, LOW);
     while (WiFi.status() != WL_CONNECTED) {
         delay(250);
         digitalWrite(WIFI_BLINK, LOW);
         delay(250);
-        //Serial.print("."); 
         digitalWrite(WIFI_BLINK, HIGH);
     }
     digitalWrite(WIFI_BLINK, HIGH);
-    //Serial.println("\nConnected to the WiFi network");
 }
 
 // MQTT connection setup
 void connectToMQTTBroker() {
     while (!MQTTClient.connected()) {
         String client_id = "esp8266-client-" + String(ESP.getChipId(), HEX);
-        //Serial.println("Connecting to MQTT broker...");
         digitalWrite(MQTT_BLINK, HIGH);
         if (MQTTClient.connect(client_id.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
-            //Serial.println("Connected to MQTT broker!");
             digitalWrite(MQTT_BLINK, HIGH);
-            MQTTClient.subscribe(MQTT_TOPIC);
+            // Subscribe to control topic
+            MQTTClient.subscribe(QUERY_TOPIC);
         } else {
-            //Serial.print("Failed to connect to MQTT broker, rc=");
-            //Serial.println(MQTTClient.state());
-            //Serial.println("Trying again in 5 seconds.");
-            delay(1000);
-            digitalWrite(MQTT_BLINK, LOW);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, HIGH);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, LOW);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, HIGH);
-            delay(1000);
-            digitalWrite(MQTT_BLINK, LOW);
-            delay(1000);
+            delay(5000); // Retry after 5 seconds
         }
     }
 }
 
 // MQTT publish message
 void mqttPublishMessage(const char *topic, const SensorData &data) {
-    char message[128];  // Reduced buffer size
+    char message[128];
     data.toJson(message, sizeof(message));
     MQTTClient.publish(topic, message);
 }
 
+void mqttPublishKeepAlive() {
+    MQTTClient.publish(KEEPALIVE_TOPIC, "ESP8266 is online");
+}
+
+// Handle incoming MQTT messages
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
-    ControlMessage controlMsg;
-    if (controlMsg.fromJson((char*)payload, length)) {
-        if (controlMsg.pump) {
-            digitalWrite(PUMP_PIN, HIGH);
-            delay(controlMsg.duration * 1000); // Consider using millis() for non-blocking
-            digitalWrite(PUMP_PIN, LOW);
-        }
-        if (controlMsg.fan) {
-            digitalWrite(FAN_PIN, HIGH);
-            delay(controlMsg.duration * 1000); // Consider using millis() for non-blocking
-            digitalWrite(FAN_PIN, LOW);
+    if (strcmp(topic, QUERY_TOPIC) == 0) {
+        ControlMessage controlMsg;
+        if (controlMsg.fromJson((char*)payload, length)) {
+            if (controlMsg.pump) {
+                //Serial.print("Turning pump ON for ");
+                //Serial.print(controlMsg.duration);
+                //Serial.println(" seconds");
+                digitalWrite(PUMP_PIN, HIGH);
+                delay(controlMsg.duration * 1000); // Blocking delay
+                digitalWrite(PUMP_PIN, LOW);
+            }
+            if (controlMsg.fan) {
+                //Serial.print("Turning fan ON for ");
+                //Serial.print(controlMsg.duration);
+                //Serial.println(" seconds");
+                digitalWrite(FAN_PIN, HIGH);
+                delay(controlMsg.duration * 1000); // Blocking delay
+                digitalWrite(FAN_PIN, LOW);
+            }
         }
     }
 }
 
 // MQTT initialization
 void mqttSetup() {
-    connectToWiFi();
     MQTTClient.setServer(MQTT_BROKER, MQTT_PORT);
     MQTTClient.setCallback(mqttCallback);
+    connectToWiFi();
     connectToMQTTBroker();
 }
 
@@ -154,26 +155,15 @@ void DHTSetup() {
 SensorData GetSensorData() {
     SensorData data;
     data.humidity = dht.readHumidity();
-    float temp = dht.readTemperature();
-    data.temperature = isnan(temp) ? 0 : temp;
+    data.temperature = dht.readTemperature();
     data.moisture = map(analogRead(SENSOR_PIN), DRY_VAL, WET_VAL, 0, 100);
-    if(data.humidity != 0 && data.temperature != 0){
-        digitalWrite(DHT_BLINK, HIGH);
-    } else {
-        digitalWrite(DHT_BLINK, LOW);
-    }
-    if(data.moisture <= 100) {
-        digitalWrite(SOIL_BLINK, HIGH);
-    } else {
-        digitalWrite(SOIL_BLINK, LOW);
-    }
     return data;
 }
 
 // Publish sensor data to MQTT
 void publishSensorData() {
     SensorData sensorData = GetSensorData();
-    mqttPublishMessage(MQTT_TOPIC, sensorData);
+    mqttPublishMessage(SENSOR_TOPIC, sensorData);
 }
 
 void setup() {
@@ -186,10 +176,6 @@ void setup() {
 
     digitalWrite(PUMP_PIN, LOW);
     digitalWrite(FAN_PIN, LOW);
-    digitalWrite(WIFI_BLINK, LOW);
-    digitalWrite(MQTT_BLINK, LOW);
-    digitalWrite(DHT_BLINK, LOW);
-    digitalWrite(SOIL_BLINK, LOW);
 
     //Serial.begin(115200);
     DHTSetup();
@@ -201,9 +187,18 @@ void loop() {
     MQTTClient.loop();
 
     unsigned long currentTime = millis();
-    if (currentTime - lastPublishTime >= PUBLISH_INTERVAL) {
+
+    // Publish sensor data every 5 minutes
+    if (currentTime - lastSensorTime >= SENSOR_INTERVAL) {
         publishSensorData();
-        lastPublishTime = currentTime;
+        lastSensorTime = currentTime;
     }
-    delay(10);
+
+    // Publish keep-alive message every 30 seconds
+    if (currentTime - lastKeepAliveTime >= KEEPALIVE_INTERVAL) {
+        mqttPublishKeepAlive();
+        lastKeepAliveTime = currentTime;
+    }
+
+    delay(10); // Small delay to avoid watchdog resets
 }
