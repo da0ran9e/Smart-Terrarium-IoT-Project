@@ -34,8 +34,8 @@ const int DAYLIGHT_OFFSET_SEC = 0;
 
 #define DHTTYPE DHT11
 
-const int WET_VAL = 500;  // Wet soil threshold
-const int DRY_VAL = 714;  // Dry soil threshold
+const int WET_VAL = 120;  // Wet soil threshold
+const int DRY_VAL = 170;  // Dry soil threshold
 
 // Time interval to publish sensor data (in milliseconds)
 const unsigned long PUBLISH_INTERVAL = 5000;
