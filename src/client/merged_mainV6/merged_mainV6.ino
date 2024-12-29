@@ -35,8 +35,8 @@ const int DAYLIGHT_OFFSET_SEC = 0;
 
 #define DHTTYPE DHT11
 
-const int WET_VAL = 120;  // Wet soil threshold
-const int DRY_VAL = 170;  // Dry soil threshold
+const int WET_VAL = 500;  // Wet soil threshold
+const int DRY_VAL = 714;  // Dry soil threshold
 
 // Time interval to publish sensor data (in milliseconds)
 const unsigned long PUBLISH_INTERVAL = 5000;
@@ -56,12 +56,14 @@ DHT dht(DHT_PIN, DHTTYPE);
 
 // SensorData structure to hold DHT and moisture data
 struct SensorData {
+    int sensorId = 1;
     float temperature;
     float humidity;
     int moisture;
 
     void toJson(char *jsonBuffer, size_t bufferSize) const {
-        StaticJsonDocument<150> jsonDoc;  // Reduced from 200 to 150
+        StaticJsonDocument<150> jsonDoc;
+        jsonDoc["Id"] = sensorId;
         jsonDoc["temperature"] = temperature;
         jsonDoc["humidity"] = humidity;
         jsonDoc["moisture"] = moisture;
@@ -76,7 +78,7 @@ struct ControlMessage {
     unsigned int duration;
 
     bool fromJson(const char *jsonBuffer, size_t length) {
-        StaticJsonDocument<100> jsonDoc;  // Reduced from 200 to 100
+        StaticJsonDocument<100> jsonDoc; 
         auto error = deserializeJson(jsonDoc, jsonBuffer, length);
         if (error) return false;
         pump = jsonDoc["pump"] | false;
@@ -90,7 +92,7 @@ struct ControlMessage {
 struct Schedule {
     time_t timestamp;
     unsigned int duration;
-    bool isPump; // true for pump, false for fan
+    bool isPump;
 };
 
 std::vector<Schedule> schedules;
@@ -101,6 +103,7 @@ void connectToWiFi() {
     bool res;
     res = wm.autoConnect(AP_NAME, AP_PASSWORD); 
     if(!res) {
+        // Just blink the led for debugging
         digitalWrite(WIFI_BLINK, HIGH);
         delay(25);
         digitalWrite(WIFI_BLINK, LOW);
@@ -119,7 +122,7 @@ void connectToWiFi() {
 // Sync time using NTP
 void syncTime() {
     configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-    while (time(nullptr) < 1609459200) { // Wait until time is synchronized
+    while (time(nullptr) < 1609459200) { 
         delay(100);
     }
 }
@@ -176,7 +179,7 @@ void mqttPublishMessage(const char *topic, const SensorData &data) {
 }
 
 void mqttPublishKeepAlive() {
-    MQTTClient.publish(KEEPALIVE_TOPIC, "ESP8266 is online");
+    MQTTClient.publish(KEEPALIVE_TOPIC, "{\"Id\":1, \"alive\":true}");
 }
 
 void handlePumpFan() {
@@ -190,7 +193,7 @@ void handlePumpFan() {
     }
 }
 
-// Check and execute scheduled tasks
+// Check schedule 
 void handleSchedules() {
     time_t now = time(nullptr);
     for (auto it = schedules.begin(); it != schedules.end(); ) {
@@ -217,7 +220,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
     StaticJsonDocument<512> jsonDoc;
     DeserializationError error = deserializeJson(jsonDoc, payload, length);
     if (error) {
-        return; // Handle parsing error
+        return; 
     }
 
     // Manual controls
@@ -238,7 +241,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
         isFanOn = true;
     }
 
-    // Parse and schedule tasks
+    // schedule controls
     const char* scheduleStr = jsonDoc["schedule"] | "";
     if (strlen(scheduleStr) > 0) {
         char scheduleCopy[128];
@@ -299,17 +302,6 @@ void publishSensorData() {
     mqttPublishMessage(SENSOR_TOPIC, sensorData);
 }
 
-void staticBlink() {
-  //digitalWrite(LED2, !digitalRead(LED2));
-  publishSensorData();
-}
-
-void scheduledBlink() {
-  //digitalWrite(LED3, !digitalRead(LED2));
-  mqttPublishKeepAlive();
-}
-
-
 void setup() {
   pinMode(PUMP_PIN, OUTPUT);
   pinMode(FAN_PIN, OUTPUT);
@@ -335,17 +327,18 @@ void loop() {
   if (!MQTTClient.connected()) connectToMQTTBroker();
     MQTTClient.loop();
 
-    // Publish sensor data at intervals
+    // Publish sensor data 
     if (millis() - lastPublishTime >= PUBLISH_INTERVAL) {
         publishSensorData();
         lastPublishTime = millis();
     }
 
-    // Send keep-alive message at intervals
+    // Send keep-alive
     if (millis() - lastKeepAliveTime >= KEEPALIVE_INTERVAL) {
         mqttPublishKeepAlive();
         lastKeepAliveTime = millis();
     }
+
     handleSchedules();
     handlePumpFan();
     delay(10);

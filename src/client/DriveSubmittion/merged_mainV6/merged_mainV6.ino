@@ -1,13 +1,13 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "ESP8266TrueRandom.h"
 #include <DHT.h>
 #include <time.h>
+#include <WiFiManager.h> 
 
-// WiFi and MQTT settings
-const char* SSID     = "Tung home"; 
-const char* PASSWORD = "0963617074";
+// Access Point settings
+const char* AP_NAME     = "8266-AP"; 
+const char* AP_PASSWORD = "password";
 
 const char* MQTT_BROKER = "broker.emqx.io";
 const char* SENSOR_TOPIC = "ict66/smarterra/sensors/";
@@ -35,11 +35,8 @@ const int DAYLIGHT_OFFSET_SEC = 0;
 
 #define DHTTYPE DHT11
 
-const int WET_VAL = 120;  // Wet soil threshold
-const int DRY_VAL = 170;  // Dry soil threshold
-
-int RandomRAW = 0;
-int RandFactor = 0;
+const int WET_VAL = 500;  // Wet soil threshold
+const int DRY_VAL = 714;  // Dry soil threshold
 
 // Time interval to publish sensor data (in milliseconds)
 const unsigned long PUBLISH_INTERVAL = 5000;
@@ -59,14 +56,12 @@ DHT dht(DHT_PIN, DHTTYPE);
 
 // SensorData structure to hold DHT and moisture data
 struct SensorData {
-    int sensorId = 1;
     float temperature;
     float humidity;
     int moisture;
 
     void toJson(char *jsonBuffer, size_t bufferSize) const {
-        StaticJsonDocument<150> jsonDoc;  
-        jsonDoc["Id"] = sensorId;
+        StaticJsonDocument<150> jsonDoc;  // Reduced from 200 to 150
         jsonDoc["temperature"] = temperature;
         jsonDoc["humidity"] = humidity;
         jsonDoc["moisture"] = moisture;
@@ -102,18 +97,23 @@ std::vector<Schedule> schedules;
 
 // WiFi connection setup
 void connectToWiFi() {
-    WiFi.begin(SSID, PASSWORD);
-    //Serial.print("Connecting to WiFi");
-    digitalWrite(WIFI_BLINK, LOW);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(250);
-        digitalWrite(WIFI_BLINK, LOW);
-        delay(250);
-        //Serial.print("."); 
+    WiFiManager wm;
+    bool res;
+    res = wm.autoConnect(AP_NAME, AP_PASSWORD); 
+    if(!res) {
         digitalWrite(WIFI_BLINK, HIGH);
+        delay(25);
+        digitalWrite(WIFI_BLINK, LOW);
+        delay(25);
+        digitalWrite(WIFI_BLINK, HIGH);
+        delay(25);
+        digitalWrite(WIFI_BLINK, LOW);
+        delay(25);
+    } 
+    else {
+        digitalWrite(WIFI_BLINK, HIGH);
+        delay(25);
     }
-    digitalWrite(WIFI_BLINK, HIGH);
-    //Serial.println("\nConnected to the WiFi network");
 }
 
 // Sync time using NTP
@@ -176,7 +176,7 @@ void mqttPublishMessage(const char *topic, const SensorData &data) {
 }
 
 void mqttPublishKeepAlive() {
-    MQTTClient.publish(KEEPALIVE_TOPIC, "{\"Id\":1, \"alive\":true}");
+    MQTTClient.publish(KEEPALIVE_TOPIC, "ESP8266 is online");
 }
 
 void handlePumpFan() {
@@ -265,7 +265,6 @@ void mqttSetup() {
     MQTTClient.setServer(MQTT_BROKER, MQTT_PORT);
     MQTTClient.setCallback(mqttCallback);
     connectToMQTTBroker();
-    //randomSeed(ESP8266TrueRandom.random());
 }
 
 // Setup DHT and pump pins
@@ -291,12 +290,6 @@ SensorData GetSensorData() {
     } else {
         digitalWrite(SOIL_BLINK, LOW);
     }
-    
-    //RandFactor = ESP8266TrueRandom.random(RandomRAW);
-    
-    data.humidity = ESP8266TrueRandom.random(229)/10 + 32.0;
-    data.temperature = ESP8266TrueRandom.random(245)/10 + 16.2;
-    data.moisture = ESP8266TrueRandom.random(56) + 35;
     return data;
 }
 

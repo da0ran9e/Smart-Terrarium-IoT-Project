@@ -1,13 +1,13 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include "ESP8266TrueRandom.h"
 #include <DHT.h>
 #include <time.h>
+#include <WiFiManager.h> 
 
-// WiFi and MQTT settings
-const char* SSID     = "Tung home"; 
-const char* PASSWORD = "0963617074";
+// Access Point settings
+const char* AP_NAME     = "8266-AP"; 
+const char* AP_PASSWORD = "password";
 
 const char* MQTT_BROKER = "broker.emqx.io";
 const char* SENSOR_TOPIC = "ict66/smarterra/sensors/";
@@ -38,9 +38,6 @@ const int DAYLIGHT_OFFSET_SEC = 0;
 const int WET_VAL = 120;  // Wet soil threshold
 const int DRY_VAL = 170;  // Dry soil threshold
 
-int RandomRAW = 0;
-int RandFactor = 0;
-
 // Time interval to publish sensor data (in milliseconds)
 const unsigned long PUBLISH_INTERVAL = 5000;
 const unsigned long KEEPALIVE_INTERVAL = 3000;
@@ -57,16 +54,21 @@ WiFiClient espClient;
 PubSubClient MQTTClient(espClient);
 DHT dht(DHT_PIN, DHTTYPE);
 
+// Scheduling structure
+struct Schedule {
+    time_t timestamp;
+    unsigned int duration;
+};
+std::vector<Schedule> schedules;
+
 // SensorData structure to hold DHT and moisture data
 struct SensorData {
-    int sensorId = 1;
     float temperature;
     float humidity;
     int moisture;
 
     void toJson(char *jsonBuffer, size_t bufferSize) const {
-        StaticJsonDocument<150> jsonDoc;  
-        jsonDoc["Id"] = sensorId;
+        StaticJsonDocument<150> jsonDoc;  // Reduced from 200 to 150
         jsonDoc["temperature"] = temperature;
         jsonDoc["humidity"] = humidity;
         jsonDoc["moisture"] = moisture;
@@ -91,29 +93,27 @@ struct ControlMessage {
     }
 };
 
-// Scheduling structure
-struct Schedule {
-    time_t timestamp;
-    unsigned int duration;
-    bool isPump; // true for pump, false for fan
-};
 
-std::vector<Schedule> schedules;
 
 // WiFi connection setup
 void connectToWiFi() {
-    WiFi.begin(SSID, PASSWORD);
-    //Serial.print("Connecting to WiFi");
-    digitalWrite(WIFI_BLINK, LOW);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(250);
-        digitalWrite(WIFI_BLINK, LOW);
-        delay(250);
-        //Serial.print("."); 
+    WiFiManager wm;
+    bool res;
+    res = wm.autoConnect(AP_NAME, AP_PASSWORD); 
+    if(!res) {
         digitalWrite(WIFI_BLINK, HIGH);
+        delay(25);
+        digitalWrite(WIFI_BLINK, LOW);
+        delay(25);
+        digitalWrite(WIFI_BLINK, HIGH);
+        delay(25);
+        digitalWrite(WIFI_BLINK, LOW);
+        delay(25);
+    } 
+    else {
+        digitalWrite(WIFI_BLINK, HIGH);
+        delay(25);
     }
-    digitalWrite(WIFI_BLINK, HIGH);
-    //Serial.println("\nConnected to the WiFi network");
 }
 
 // Sync time using NTP
@@ -124,14 +124,17 @@ void syncTime() {
     }
 }
 
-// Parse "HH:MM" into time_t for the current day
-time_t parseTime(const char* timeStr) {
+// Parse "MM/DD/YYYY HH:MM" into time_t
+time_t parseDateTime(const char* dateTimeStr) {
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) return 0;
 
-    int hour, minute;
-    sscanf(timeStr, "%d:%d", &hour, &minute);
+    int month, day, year, hour, minute;
+    sscanf(dateTimeStr, "%d/%d/%d %d:%d", &month, &day, &year, &hour, &minute);
 
+    timeinfo.tm_year = year - 1900;
+    timeinfo.tm_mon = month - 1;
+    timeinfo.tm_mday = day;
     timeinfo.tm_hour = hour;
     timeinfo.tm_min = minute;
     timeinfo.tm_sec = 0;
@@ -176,7 +179,7 @@ void mqttPublishMessage(const char *topic, const SensorData &data) {
 }
 
 void mqttPublishKeepAlive() {
-    MQTTClient.publish(KEEPALIVE_TOPIC, "{\"Id\":1, \"alive\":true}");
+    MQTTClient.publish(KEEPALIVE_TOPIC, "ESP8266 is online");
 }
 
 void handlePumpFan() {
@@ -193,19 +196,12 @@ void handlePumpFan() {
 // Check and execute scheduled tasks
 void handleSchedules() {
     time_t now = time(nullptr);
-    for (auto it = schedules.begin(); it != schedules.end(); ) {
+    for (auto it = schedules.begin(); it != schedules.end();) {
         if (now >= it->timestamp && now < it->timestamp + it->duration) {
-            if (it->isPump) {
-                digitalWrite(PUMP_PIN, HIGH);
-                pumpStartTime = millis();
-                pumpDuration = it->duration;
-                isPumpOn = true;
-            } else {
-                digitalWrite(FAN_PIN, HIGH);
-                fanStartTime = millis();
-                fanDuration = it->duration;
-                isFanOn = true;
-            }
+            digitalWrite(PUMP_PIN, HIGH);
+            pumpStartTime = millis();
+            pumpDuration = it->duration;
+            isPumpOn = true;
             it = schedules.erase(it);
         } else {
             ++it;
@@ -213,6 +209,27 @@ void handleSchedules() {
     }
 }
 
+void scheduleParse(const char * scheduleStr){
+    if (strlen(scheduleStr) > 0) {
+        char scheduleCopy[128];
+        strncpy(scheduleCopy, scheduleStr, sizeof(scheduleCopy));
+        char* token = strtok(scheduleCopy, "&");
+        while (token != nullptr) {
+            char dateTime[6];
+            unsigned int schedDuration;
+            sscanf(token, "%s %u", dateTime, &schedDuration);
+
+            time_t timestamp = parseDateTime(dateTime);
+            if (timestamp > time(nullptr)) {
+                schedules.push_back({timestamp, schedDuration});
+            }
+            token = strtok(nullptr, "&");
+        }
+    }
+}
+
+//"schedule": "12/15/2024 12:10 10"
+//"auto": "fan 30 & pump 70"
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
     StaticJsonDocument<512> jsonDoc;
     DeserializationError error = deserializeJson(jsonDoc, payload, length);
@@ -238,21 +255,26 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
         isFanOn = true;
     }
 
-    // Parse and schedule tasks
+    // Parse and schedule pump tasks
     const char* scheduleStr = jsonDoc["schedule"] | "";
     if (strlen(scheduleStr) > 0) {
         char scheduleCopy[128];
         strncpy(scheduleCopy, scheduleStr, sizeof(scheduleCopy));
         char* token = strtok(scheduleCopy, "&");
         while (token != nullptr) {
-            char timeStr[6];
+            char dateTimeStr[20];
             unsigned int schedDuration;
-            bool isPumpTask = strstr(token, "pump") != nullptr;
-            sscanf(token, "%s %u", timeStr, &schedDuration);
 
-            time_t timestamp = parseTime(timeStr);
+            // Extract date, time, and duration
+            strcpy(dateTimeStr, token);
+            dateTimeStr[16] = 0;
+            sscanf(token + 17, "%u", &schedDuration);
+            
+            token = strtok(nullptr, "&");
+
+            time_t timestamp = parseDateTime(dateTimeStr);
             if (timestamp > time(nullptr)) {
-                schedules.push_back({timestamp, schedDuration, isPumpTask});
+                schedules.push_back({timestamp, schedDuration});
             }
             token = strtok(nullptr, "&");
         }
@@ -265,7 +287,6 @@ void mqttSetup() {
     MQTTClient.setServer(MQTT_BROKER, MQTT_PORT);
     MQTTClient.setCallback(mqttCallback);
     connectToMQTTBroker();
-    //randomSeed(ESP8266TrueRandom.random());
 }
 
 // Setup DHT and pump pins
@@ -291,12 +312,6 @@ SensorData GetSensorData() {
     } else {
         digitalWrite(SOIL_BLINK, LOW);
     }
-    
-    //RandFactor = ESP8266TrueRandom.random(RandomRAW);
-    
-    data.humidity = ESP8266TrueRandom.random(229)/10 + 32.0;
-    data.temperature = ESP8266TrueRandom.random(245)/10 + 16.2;
-    data.moisture = ESP8266TrueRandom.random(56) + 35;
     return data;
 }
 
